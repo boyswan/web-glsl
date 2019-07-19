@@ -1,0 +1,16 @@
+{
+  "name": "webgl-hmr",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "yarn serve & yarn watch",
+    "watch": "fpack watch src/index.js --development -o public -n bundle.js",
+    "serve": "hot-server --path=public"
+  },
+  "dependencies": {
+    "fpack": "^0.6.3",
+    "gl-matrix": "^2.8.1",
+    "hot-server": "github:boyswan/hot-server"
+  }
+}
