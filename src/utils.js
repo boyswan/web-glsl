@@ -42,7 +42,7 @@ export const initViewMatrices = (gl, shaderProgram, programInfo) => {
   const progModelMatrix = programInfo.uModelViewMatrix;
   const modelViewMatrix = mat4.create();
   const projectionMatrix = mat4.create();
-  const fieldOfView = (45 * Math.PI) / 180;
+  const fieldOfView = (20 * Math.PI) / 180;
   const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
   const zNear = 0.1;
   const zFar = 100.0;
@@ -64,7 +64,8 @@ export const clearCanvas = gl => {
 export const initBuffer = (gl, matrix, type) => {
   const buffer = gl.createBuffer();
   gl.bindBuffer(type, buffer);
-  gl.bufferData(type, new Float32Array(matrix), gl.STATIC_DRAW);
+  gl.bufferData(type, matrix, gl.STATIC_DRAW);
+  // gl.bindBuffer(type, null);
   return buffer;
 };
 
@@ -93,6 +94,10 @@ export const circle = (points, radius, x, y) => {
 };
 
 export const render = (cb, fps = 60) => {
+  let mouse = [1, 1];
+  window.addEventListener('mousemove', event => {
+    mouse = [event.x, event.y];
+  });
   const loop = () => {
     setTimeout(() => {
       requestAnimationFrame(loop);
@@ -100,7 +105,7 @@ export const render = (cb, fps = 60) => {
 
     clearCanvas(gl);
     const time = performance.now() / 1000;
-    cb(time);
+    cb({ time, mouse });
   };
   loop();
 };
@@ -110,7 +115,7 @@ export const rand = (min, max) =>
 
 export const polygon = ({ program, shaderProgram }, { positions, color }) => {
   const buffers = {
-    position: initBuffer(gl, positions, gl.ARRAY_BUFFER)
+    position: initBuffer(gl, new Float32Array(positions), gl.ARRAY_BUFFER)
   };
   const offset = 2;
   const count = positions.length / offset;
@@ -136,8 +141,9 @@ export class Polygon {
   }
 
   setPositions(positions) {
-    const buffer = initBuffer(gl, positions, gl.ARRAY_BUFFER);
+    const buffer = initBuffer(gl, new Float32Array(positions), gl.ARRAY_BUFFER);
     bindBuffer(gl, this.program, buffer, 2);
+
     gl.drawArrays(gl.LINE_LOOP, 0, positions.length / 2);
   }
 
@@ -147,40 +153,32 @@ export class Polygon {
   }
 }
 
-// export const polygon2 = ({ program, shaderProgram }, { positions, color }) => {
-//   // prettier-ignore
-//   var positions = new Float32Array([
-//     // Triangle 1 vertices:
-//     0.0,  0.5, 0.0,          // Vertex A (x,y,z)
-//    -0.5, -0.5, 0.0,          // Vertex B (x,y,z)
-//     0.5, -0.5, 0.0,          // Vertex C (x,y,z)
-//     // Triangle 2 vertices:
-//     0.05 + 0.0,  0.75, 0.0,  // Vertex A (x,y,z)
-//     0.75 - 0.5, -0.75, 0.0,  // Vertex B (x,y,z)
-//     0.15 + 0.5, -0.75, 0.0,  // Vertex C (x,y,z)
-// ]);
+export class Element {
+  constructor({ vert, frag, locations }) {
+    const p = initProgram({ vert, frag, locations });
+    this.vert = vert;
+    this.frag = frag;
+    this.program = p.program;
+    this.shaderProgram = p.shaderProgram;
+    gl.useProgram(p.shaderProgram);
+  }
 
-//   // prettier-ignore
-//   var color = new Float32Array([
-//     // Triangle 1 vertex colors:
-//     1.0, 0.0, 0.0,           // Vertex A (r,g,b) -- red
-//     0.0, 1.0, 0.0,           // Vertex B (r,g,b) -- green
-//     0.0, 0.0, 1.0,           // Vertex C (r,g,b) -- blue
-//     // Triangle 2 vertex colors:
-//     0.0, 0.0, 1.0,           // Vertex A (r,g,b) -- red
-//     0.0, 1.0, 0.0,           // Vertex B (r,g,b) -- green
-//     1.0, 0.0, 0.0            // Vertex C (r,g,b) -- blue
-// ]);
+  setPositions(positions) {
+    var vertices = positions;
+    var indices = [3, 2, 1, 3, 1, 0];
 
-//   const buffers = {
-//     position: initBuffer(gl, positions, gl.ARRAY_BUFFER)
-//   };
-//   const offset = 2;
-//   const count = positions.length / offset;
-//   gl.useProgram(shaderProgram);
-//   bindBuffer(gl, program, buffers.position, offset);
-//   gl.uniform3fv(program.uColor, color);
-//   // gl.drawArrays(gl.LINE_LOOP, 0, count);
-//   var indices = [0, 1, 2, 3, 4, 5];
-//   gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
-// };
+    initBuffer(gl, new Float32Array(vertices), gl.ARRAY_BUFFER);
+    initBuffer(gl, new Uint16Array(indices), gl.ELEMENT_ARRAY_BUFFER);
+
+    const attrib = this.program['aVertexPosition'];
+    gl.vertexAttribPointer(attrib, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(attrib);
+
+    gl.drawElements(gl.TRIANGLE_STRIP, indices.length, gl.UNSIGNED_SHORT, 0);
+  }
+
+  setUniform(uniform = '', value) {
+    const len = value.length;
+    gl['uniform' + len + 'fv'](this.program[uniform], value);
+  }
+}
