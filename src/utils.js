@@ -36,6 +36,12 @@ export const loadShader = (gl, type, source) => {
   return shader;
 };
 
+export const initAttrib = (gl, program, name) => {
+  const attrib = program[name];
+  gl.vertexAttribPointer(attrib, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(attrib);
+};
+
 export const initViewMatrices = (gl, shaderProgram, programInfo) => {
   clearCanvas(gl);
   const progProjecMatrix = programInfo.uProjectionMatrix;
@@ -80,23 +86,13 @@ export const bindBuffer = (gl, programInfo, buffer, iter) => {
   gl.enableVertexAttribArray(vertPos);
 };
 
-export const line = (x, y) => [x, x, x, y];
-
-export const circle = (points, radius, x, y) => {
-  const acc = new Float32Array(points);
-  const slice = (2 * Math.PI) / points;
-  for (let i = 0; i < points; i += 2) {
-    const angle = slice * i;
-    acc[i] = x + radius * Math.cos(angle);
-    acc[i + 1] = y + radius * Math.sin(angle);
-  }
-  return acc;
-};
-
 export const render = (cb, fps = 60) => {
   let mouse = [1, 1];
   window.addEventListener('mousemove', event => {
-    mouse = [event.x, event.y];
+    mouse = [
+      (event.x / window.innerWidth).toFixed(2),
+      (event.y / window.innerHeight).toFixed(2)
+    ];
   });
   const loop = () => {
     setTimeout(() => {
@@ -113,72 +109,9 @@ export const render = (cb, fps = 60) => {
 export const rand = (min, max) =>
   Math.floor(Math.random() * (max - min + 1) + min);
 
-export const polygon = ({ program, shaderProgram }, { positions, color }) => {
-  const buffers = {
-    position: initBuffer(gl, new Float32Array(positions), gl.ARRAY_BUFFER)
-  };
-  const offset = 2;
-  const count = positions.length / offset;
-  gl.useProgram(shaderProgram);
-  bindBuffer(gl, program, buffers.position, offset);
-  gl.uniform3fv(program.uColor, color);
-  gl.drawArrays(gl.LINE_LOOP, 0, count);
-};
-
 export const initProgram = ({ vert, frag, locations }) => {
   const shaderProgram = initShaderProgram(gl, vert, frag);
   const program = initProgramInfo(gl, shaderProgram, locations);
   initViewMatrices(gl, shaderProgram, program);
   return { program, shaderProgram };
 };
-
-export class Polygon {
-  constructor({ vert, frag, uniforms = [], attributes = [] }) {
-    const locations = [...uniforms, ...attributes];
-    const p = initProgram({ vert, frag, locations });
-    this.program = p.program;
-    gl.useProgram(p.shaderProgram);
-  }
-
-  setPositions(positions) {
-    const buffer = initBuffer(gl, new Float32Array(positions), gl.ARRAY_BUFFER);
-    bindBuffer(gl, this.program, buffer, 2);
-
-    gl.drawArrays(gl.LINE_LOOP, 0, positions.length / 2);
-  }
-
-  setUniform(uniform = '', value) {
-    const len = value.length;
-    gl['uniform' + len + 'fv'](this.program[uniform], value);
-  }
-}
-
-export class Element {
-  constructor({ vert, frag, locations }) {
-    const p = initProgram({ vert, frag, locations });
-    this.vert = vert;
-    this.frag = frag;
-    this.program = p.program;
-    this.shaderProgram = p.shaderProgram;
-    gl.useProgram(p.shaderProgram);
-  }
-
-  setPositions(positions) {
-    var vertices = positions;
-    var indices = [3, 2, 1, 3, 1, 0];
-
-    initBuffer(gl, new Float32Array(vertices), gl.ARRAY_BUFFER);
-    initBuffer(gl, new Uint16Array(indices), gl.ELEMENT_ARRAY_BUFFER);
-
-    const attrib = this.program['aVertexPosition'];
-    gl.vertexAttribPointer(attrib, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(attrib);
-
-    gl.drawElements(gl.TRIANGLE_STRIP, indices.length, gl.UNSIGNED_SHORT, 0);
-  }
-
-  setUniform(uniform = '', value) {
-    const len = value.length;
-    gl['uniform' + len + 'fv'](this.program[uniform], value);
-  }
-}
